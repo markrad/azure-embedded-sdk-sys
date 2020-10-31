@@ -66,9 +66,9 @@ fn main() {
     println!("cargo:rustc-link-search=native={}", platform_path.to_str().unwrap());
     
     // Tell cargo to tell rustc to link the azureiot libraries.
-    println!("cargo:rustc-link-lib=az_core");
-    println!("cargo:rustc-link-lib=az_iot_common");
     println!("cargo:rustc-link-lib=az_iot_hub"); 
+    println!("cargo:rustc-link-lib=az_iot_common");
+    println!("cargo:rustc-link-lib=az_core");
     println!("cargo:rustc-link-lib=az_iot_provisioning"); 
     println!("cargo:rustc-link-lib=az_nohttp");
     println!("cargo:rustc-link-lib=az_{}", family.to_lowercase());
