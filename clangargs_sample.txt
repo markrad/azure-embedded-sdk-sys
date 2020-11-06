@@ -1,0 +1,12 @@
+# clangargs_sample.txt
+#
+# This is an example of clangargs.txt. By creating this file the user can pass
+# additional arguments to the clang invocation used to convert the C header 
+# files to rust bindings. Each option must be on a seperate line. Any line 
+# that does not begine with a hyphen (-) will be ignored.
+#
+# Example of passing an additional include directory:
+-I/usr/lib/gcc/x86_64-linux-gnu/7/include/
+
+# Turn on verbose for debugging
+-v

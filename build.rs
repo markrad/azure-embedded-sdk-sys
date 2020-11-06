@@ -2,12 +2,14 @@
 
 extern crate bindgen;
 
+use cmake;
 use std::env;
 use std::path::PathBuf;
-use cmake;
+use std::path::Path;
+use std::fs::File;
+use std::io::{prelude::*, BufReader};
 
 fn main() {
-
     // Builds the azure iot sdk, installing it
     // into $OUT_DIR
     use cmake::Config;
@@ -20,8 +22,7 @@ fn main() {
     if env::var("CARGO_CFG_TARGET_FAMILY").unwrap().eq("windows") {
         family = "WIN32".to_string();
         no_build_target = false;
-    }
-    else {
+    } else {
         family = "POSIX".to_string();
         no_build_target = true;
     }
@@ -33,19 +34,26 @@ fn main() {
 
     if env::var("PROFILE").unwrap().eq("release") {
         profile = "Release".to_string();
-    }
-    else {
+    } else {
         profile = "Debug".to_string();
     }
 
     let _dst = Config::new("azure-sdk-for-c")
-                    .no_build_target(no_build_target)
-                    .build_target("ALL_BUILD")
-                    .define("AZ_PLATFORM_IMPL", &family)
-                    .build();
+        .no_build_target(no_build_target)
+        .build_target("ALL_BUILD")
+        .define("AZ_PLATFORM_IMPL", &family)
+        .build();
 
-    let root_path: PathBuf = [&out_dir, &"build".to_string(), &"sdk".to_string(), &"src".to_string(), &"azure".to_string()].iter().collect();
-    
+    let root_path: PathBuf = [
+        &out_dir,
+        &"build".to_string(),
+        &"sdk".to_string(),
+        &"src".to_string(),
+        &"azure".to_string(),
+    ]
+    .iter()
+    .collect();
+
     let mut core_path: PathBuf = root_path.clone();
     core_path.push("core");
 
@@ -61,20 +69,60 @@ fn main() {
         platform_path.push(&profile);
     }
 
-    println!("cargo:rustc-link-search=native={}", core_path.to_str().unwrap());
-    println!("cargo:rustc-link-search=native={}", iot_path.to_str().unwrap());
-    println!("cargo:rustc-link-search=native={}", platform_path.to_str().unwrap());
-    
+    println!(
+        "cargo:rustc-link-search=native={}",
+        core_path.to_str().unwrap()
+    );
+    println!(
+        "cargo:rustc-link-search=native={}",
+        iot_path.to_str().unwrap()
+    );
+    println!(
+        "cargo:rustc-link-search=native={}",
+        platform_path.to_str().unwrap()
+    );
+
     // Tell cargo to tell rustc to link the azureiot libraries.
-    println!("cargo:rustc-link-lib=az_iot_hub"); 
+    println!("cargo:rustc-link-lib=az_iot_hub");
     println!("cargo:rustc-link-lib=az_iot_common");
     println!("cargo:rustc-link-lib=az_core");
-    println!("cargo:rustc-link-lib=az_iot_provisioning"); 
+    println!("cargo:rustc-link-lib=az_iot_provisioning");
     println!("cargo:rustc-link-lib=az_nohttp");
     println!("cargo:rustc-link-lib=az_{}", family.to_lowercase());
 
     // Tell cargo to invalidate the built crate whenever the wrapper changes
     println!("cargo:rerun-if-changed=wrapper.h");
+
+    let mut clang_args: Vec<String> = Vec::new();
+
+    // Add clang arg that we will always need
+    clang_args.push(format!("-I{}/azure-sdk-for-c/sdk/inc", root));
+
+    // Get any additional arguments provided by the user
+    let clang_input = Path::new("clangargs.txt");
+
+    if clang_input.exists() {
+        if !clang_input.is_file() {
+            println!("Ignoring clangargs.txt - not a file");
+        } else {
+            let file = File::open(clang_input).expect("Failed to open file");
+            let reader = BufReader::new(file);
+
+            for line in reader.lines() {
+                match line {
+                    Ok(l) => {
+                        if l.starts_with("-") {
+                            println!("Adding {} to clang args", l);
+                            clang_args.push(l);
+                        }
+                    },
+                    Err(e) => panic!(e),
+                }
+            }
+        }
+    } else {
+        println!("No clangargs.txt found");
+    }
 
     // The bindgen::Builder is the main entry point
     // to bindgen, and lets you build up options for
@@ -83,8 +131,8 @@ fn main() {
         // The input header we would like to generate
         // bindings for.
         .header("wrapper.h")
-        // additional clang arguments.
-        .clang_arg(format!("-I{}/azure-sdk-for-c/sdk/inc", root))
+        // Add additional clang arguments - see clangargs_sample.txt
+        .clang_args(clang_args)
         // Tell cargo to invalidate the built crate whenever any of the
         // included header files changed.
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
