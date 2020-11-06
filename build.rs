@@ -4,10 +4,10 @@ extern crate bindgen;
 
 use cmake;
 use std::env;
-use std::path::PathBuf;
-use std::path::Path;
 use std::fs::File;
 use std::io::{prelude::*, BufReader};
+use std::path::Path;
+use std::path::PathBuf;
 
 fn main() {
     // Builds the azure iot sdk, installing it
@@ -115,7 +115,7 @@ fn main() {
                             println!("Adding {} to clang args", l);
                             clang_args.push(l);
                         }
-                    },
+                    }
                     Err(e) => panic!(e),
                 }
             }
