@@ -4,9 +4,6 @@ extern crate bindgen;
 
 use cmake;
 use std::env;
-use std::fs::File;
-use std::io::{prelude::*, BufReader};
-use std::path::Path;
 use std::path::PathBuf;
 
 fn main() {
@@ -95,34 +92,8 @@ fn main() {
 
     let mut clang_args: Vec<String> = Vec::new();
 
-    // Add clang arg that we will always need
+    // Add required clang args
     clang_args.push(format!("-I{}/azure-sdk-for-c/sdk/inc", root));
-
-    // Get any additional arguments provided by the user
-    let clang_input = Path::new("clangargs.txt");
-
-    if clang_input.exists() {
-        if !clang_input.is_file() {
-            println!("Ignoring clangargs.txt - not a file");
-        } else {
-            let file = File::open(clang_input).expect("Failed to open file");
-            let reader = BufReader::new(file);
-
-            for line in reader.lines() {
-                match line {
-                    Ok(l) => {
-                        if l.starts_with("-") {
-                            println!("Adding {} to clang args", l);
-                            clang_args.push(l);
-                        }
-                    }
-                    Err(e) => panic!(e),
-                }
-            }
-        }
-    } else {
-        println!("No clangargs.txt found");
-    }
 
     // The bindgen::Builder is the main entry point
     // to bindgen, and lets you build up options for
