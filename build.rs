@@ -4,7 +4,62 @@ extern crate bindgen;
 
 use cmake;
 use std::env;
+use std::path::Path;
 use std::path::PathBuf;
+use std::fs;
+use std::process;
+use regex::Regex;
+
+fn get_cmake_version() -> (i32, i32) {
+    let out = process::Command::new("cmake")
+        .args(&["--version"])
+        .output()
+        .expect("Failed to run cmake --version");
+    let str_out = String::from_utf8(out.stdout).expect("Could not convert response to string");
+    let lines: Vec<&str> = str_out.split('\n').collect();
+    let re = Regex::new(r"cmake version (\d*)\.(\d*)").expect("Could not create regex");
+
+    let captures = re.captures(lines[0]).expect("Could not find version in string");
+    let major = captures[1].parse::<i32>().expect("Could not convert major version to integer");
+    let minor = captures[2].parse::<i32>().expect("Could not convert minor version to integer");
+
+    (major, minor)
+}
+
+fn do_hacks(family: &String) {
+    if family.eq("POSIX") {
+        let (major, minor) = get_cmake_version();
+
+        if major >= 3 && minor >= 15 {
+            return;
+        }
+
+        let filename = "./azure-sdk-for-c/CMakeLists.txt";
+        let new_filename = "./azure-sdk-for-c/CMakeLists_new.txt";
+        let old_filename = "./azure-sdk-for-c/CMakeLists_old.txt";
+
+        if Path::new(old_filename).exists() {
+            return;
+        }
+
+        let mut contents = fs::read_to_string(filename)
+            .expect("Couldn't read file");
+
+        if let Some(loc) = contents.find("cmake_policy(SET CMP0091 NEW)") {
+            contents.insert(loc, '#');
+        } else {
+            println!("Could not find policy");
+            process::exit(4);
+        }
+
+        fs::write(new_filename, contents)
+            .expect("Could not write output file");
+        fs::rename(filename, old_filename)
+            .expect("Could not rename original file");
+        fs::rename(new_filename, filename)
+            .expect("Could not rename new file");
+    }
+}
 
 fn main() {
     // Builds the azure iot sdk, installing it
@@ -23,6 +78,8 @@ fn main() {
         family = "POSIX".to_string();
         no_build_target = true;
     }
+
+    do_hacks(&family);
 
     let root = env::var("CARGO_MANIFEST_DIR").unwrap();
 

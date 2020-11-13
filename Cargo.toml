@@ -10,5 +10,6 @@ edition = "2018"
 [build-dependencies]
 bindgen = "0.55.1"
 cmake = "0.1.44"
+regex = "1"
 
 [dependencies]
